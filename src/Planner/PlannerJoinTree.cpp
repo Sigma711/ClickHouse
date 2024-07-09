@@ -850,11 +850,7 @@ JoinTreeQueryPlan buildQueryPlanForTableExpression(QueryTreeNodePtr table_expres
                 if (row_policy_filter_info.actions)
                     table_expression_data.setRowLevelFilterActions(row_policy_filter_info.actions);
 
-<<<<<<< HEAD
                 if (query_context->canUseParallelReplicasCustomKey())
-=======
-                if (query_context->getParallelReplicasMode() == ParallelReplicasMode::CUSTOM_KEY_SAMPLING)
->>>>>>> 97fc943989d (Settings unification)
                 {
                     if (settings.parallel_replicas_count > 1)
                     {
