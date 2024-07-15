@@ -82,12 +82,6 @@
 namespace fs = std::filesystem;
 using namespace std::literals;
 
-
-namespace CurrentMetrics
-{
-    extern const Metric MemoryTracking;
-}
-
 namespace DB
 {
 
@@ -101,7 +95,6 @@ namespace ErrorCodes
     extern const int UNEXPECTED_PACKET_FROM_SERVER;
     extern const int INVALID_USAGE_OF_INPUT;
     extern const int CANNOT_SET_SIGNAL_HANDLER;
-    extern const int UNRECOGNIZED_ARGUMENTS;
     extern const int LOGICAL_ERROR;
     extern const int CANNOT_OPEN_FILE;
     extern const int FILE_ALREADY_EXISTS;
