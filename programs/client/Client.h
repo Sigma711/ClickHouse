@@ -1,14 +1,16 @@
 #pragma once
 
-#include <Client/ClientBase.h>
+#include <Client/ClientApplicationBase.h>
 
 
 namespace DB
 {
 
-class Client : public ClientBase
+class Client : public ClientApplicationBase
 {
 public:
+    using Arguments = ClientApplicationBase::Arguments;
+
     Client()
     {
         fuzzer = QueryFuzzer(randomSeed(), &std::cout, &std::cerr);
