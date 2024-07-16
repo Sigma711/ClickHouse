@@ -73,15 +73,16 @@ class Shell:
         )
         if result.returncode == 0:
             res = result.stdout
-        elif check:
-            print(f"ERROR: stdout {result.stdout}, stderr {result.stderr}")
-            assert result.returncode == 0
+        else:
+            print(f"ERROR: stdout {result.stdout.strip()}, stderr {result.stderr.strip()}")
+            if check:
+                assert result.returncode == 0
         return res.strip()
 
     @classmethod
     def check(cls, command):
         result = subprocess.run(
-            command + " 2>&1",
+            command,
             shell=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,

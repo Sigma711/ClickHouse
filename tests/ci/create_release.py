@@ -28,6 +28,7 @@ from ci_config import CI
 
 CMAKE_PATH = get_abs_path(FILE_WITH_VERSION_PATH)
 CONTRIBUTORS_PATH = get_abs_path(GENERATED_CONTRIBUTORS)
+RELEASE_INFO_FILE = "/tmp/release_info.json"
 
 
 class ShellRunner:
@@ -70,15 +71,13 @@ class ReleaseInfo:
     previous_release_sha: str
 
     @staticmethod
-    def from_file(file_path: str) -> "ReleaseInfo":
-        with open(file_path, "r", encoding="utf-8") as json_file:
+    def from_file() -> "ReleaseInfo":
+        with open(RELEASE_INFO_FILE, "r", encoding="utf-8") as json_file:
             res = json.load(json_file)
         return ReleaseInfo(**res)
 
     @staticmethod
-    def prepare(commit_ref: str, release_type: str, outfile: str) -> None:
-        Path(outfile).parent.mkdir(parents=True, exist_ok=True)
-        Path(outfile).unlink(missing_ok=True)
+    def prepare(commit_ref: str, release_type: str) -> None:
         version = None
         release_branch = None
         release_tag = None
@@ -92,7 +91,7 @@ class ReleaseInfo:
                 f"git merge-base --is-ancestor origin/{commit_ref} origin/master"
             )
             with checkout(commit_ref):
-                _, commit_sha = ShellRunner.run(f"git rev-parse {commit_ref}")
+                commit_sha = Shell.run(f"git rev-parse {commit_ref}", check=True)
                 # Git() must be inside "with checkout" contextmanager
                 git = Git()
                 version = get_version_from_repo(git=git)
@@ -113,7 +112,7 @@ class ReleaseInfo:
                 assert previous_release_sha
         if release_type == "patch":
             with checkout(commit_ref):
-                _, commit_sha = ShellRunner.run(f"git rev-parse {commit_ref}")
+                commit_sha = Shell.run(f"git rev-parse {commit_ref}", check=True)
                 # Git() must be inside "with checkout" contextmanager
                 git = Git()
                 version = get_version_from_repo(git=git)
@@ -172,7 +171,7 @@ class ReleaseInfo:
             previous_release_tag=previous_release_tag,
             previous_release_sha=previous_release_sha,
         )
-        with open(outfile, "w", encoding="utf-8") as f:
+        with open(RELEASE_INFO_FILE, "w", encoding="utf-8") as f:
             print(json.dumps(dataclasses.asdict(res), indent=2), file=f)
 
     def push_release_tag(self, dry_run: bool) -> None:
@@ -526,18 +525,6 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="do not make any actual changes in the repo, just show what will be done",
     )
-    parser.add_argument(
-        "--outfile",
-        default="",
-        type=str,
-        help="output file to write json result to, if not set - stdout",
-    )
-    parser.add_argument(
-        "--infile",
-        default="",
-        type=str,
-        help="input file with release info",
-    )
 
     return parser.parse_args()
 
@@ -548,7 +535,7 @@ def checkout(ref: str) -> Iterator[None]:
     rollback_cmd = f"{GIT_PREFIX} checkout {orig_ref}"
     assert orig_ref
     if ref not in (orig_ref,):
-        ShellRunner.run(f"{GIT_PREFIX} checkout {ref}")
+        Shell.run(f"{GIT_PREFIX} checkout {ref}")
     try:
         yield
     except (Exception, KeyboardInterrupt) as e:
@@ -588,27 +575,21 @@ if __name__ == "__main__":
 
     if args.prepare_release_info:
         assert (
-            args.ref and args.release_type and args.outfile
-        ), "--ref, --release-type and --outfile must be provided with --prepare-release-info"
-        ReleaseInfo.prepare(
-            commit_ref=args.ref, release_type=args.release_type, outfile=args.outfile
-        )
+            args.ref and args.release_type
+        ), "--ref and --release-type must be provided with --prepare-release-info"
+        ReleaseInfo.prepare(commit_ref=args.ref, release_type=args.release_type)
     if args.push_release_tag:
-        assert args.infile, "--infile <release info file path> must be provided"
-        release_info = ReleaseInfo.from_file(args.infile)
+        release_info = ReleaseInfo.from_file()
         release_info.push_release_tag(dry_run=args.dry_run)
     if args.push_new_release_branch:
-        assert args.infile, "--infile <release info file path> must be provided"
-        release_info = ReleaseInfo.from_file(args.infile)
+        release_info = ReleaseInfo.from_file()
         release_info.push_new_release_branch(dry_run=args.dry_run)
     if args.create_bump_version_pr:
         # TODO: store link to PR in release info
-        assert args.infile, "--infile <release info file path> must be provided"
-        release_info = ReleaseInfo.from_file(args.infile)
+        release_info = ReleaseInfo.from_file()
         release_info.update_version_and_contributors_list(dry_run=args.dry_run)
     if args.download_packages:
-        assert args.infile, "--infile <release info file path> must be provided"
-        release_info = ReleaseInfo.from_file(args.infile)
+        release_info = ReleaseInfo.from_file()
         p = PackageDownloader(
             release=release_info.release_branch,
             commit_sha=release_info.commit_sha,
@@ -616,8 +597,7 @@ if __name__ == "__main__":
         )
         p.run()
     if args.create_gh_release:
-        assert args.infile, "--infile <release info file path> must be provided"
-        release_info = ReleaseInfo.from_file(args.infile)
+        release_info = ReleaseInfo.from_file()
         p = PackageDownloader(
             release=release_info.release_branch,
             commit_sha=release_info.commit_sha,

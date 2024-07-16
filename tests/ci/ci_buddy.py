@@ -1,5 +1,6 @@
 import json
 import os
+from typing import Union, Dict
 
 import boto3
 import requests
@@ -60,7 +61,27 @@ class CIBuddy:
         except Exception as e:
             print(f"ERROR: Failed to post message, ex {e}")
 
-    def post_error(self, error_description, job_name="", with_instance_info=True):
+    def post_info(self, title, body: Union[Dict, str], with_wf_link: bool = True):
+        message = f":white_circle:    *{title}*\n\n"
+        if isinstance(body, dict):
+            for name, value in body.items():
+                if "commit_sha" in name:
+                    value = f"<https://github.com/{self.repo}/commit/value|{value[:8]}>"
+                message += f"      *{name}*:    {value}\n"
+        else:
+            message += body + "\n"
+        run_id = os.getenv("GITHUB_RUN_ID", "")
+        if with_wf_link and run_id:
+            message += f"      *workflow*: <https://github.com/{self.repo}/actions/runs/{run_id}|{run_id}>\n"
+        self.post(message)
+
+    def post_error(
+        self,
+        error_description,
+        job_name="",
+        with_instance_info=True,
+        with_wf_link: bool = True,
+    ):
         instance_id, instance_type = "unknown", "unknown"
         if with_instance_info:
             instance_id = Shell.run("ec2metadata --instance-id") or instance_id
@@ -82,6 +103,9 @@ class CIBuddy:
             message += line_pr_
         else:
             message += line_br_
+        run_id = os.getenv("GITHUB_RUN_ID", "")
+        if with_wf_link and run_id:
+            message += f"      *workflow*: <https://github.com/{self.repo}/actions/runs/{run_id}|{run_id}>\n"
         self.post(message)
 
 
