@@ -42,7 +42,7 @@ def test_skip_all_replicas(start_cluster, skip_unavailable_shards):
         initiator.query(
             f"SELECT key, count() FROM {table_name}  GROUP BY key ORDER BY key",
             settings={
-                "allow_experimental_parallel_reading_from_replicas": 2,
+                "use_parallel_replicas": 2,
                 "max_parallel_replicas": 3,
                 "cluster_for_parallel_replicas": cluster_name,
                 "skip_unavailable_shards": skip_unavailable_shards,

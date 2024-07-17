@@ -885,7 +885,7 @@ JoinTreeQueryPlan buildQueryPlanForTableExpression(QueryTreeNodePtr table_expres
                     = planner_context->getGlobalPlannerContext()->parallel_replicas_table
                     && !table_expression_query_info.current_table_chosen_for_reading_with_parallel_replicas;
                 if (other_table_already_chosen_for_reading_with_parallel_replicas)
-                    planner_context->getMutableQueryContext()->setSetting("allow_experimental_parallel_reading_from_replicas", Field(0));
+                    planner_context->getMutableQueryContext()->setSetting("use_parallel_replicas", Field(0));
 
                 storage->read(
                     query_plan,
@@ -982,7 +982,7 @@ JoinTreeQueryPlan buildQueryPlanForTableExpression(QueryTreeNodePtr table_expres
                             if (number_of_replicas_to_use <= 1)
                             {
                                 planner_context->getMutableQueryContext()->setSetting(
-                                    "allow_experimental_parallel_reading_from_replicas", Field(0));
+                                    "use_parallel_replicas", Field(0));
                                 planner_context->getMutableQueryContext()->setSetting("max_parallel_replicas", UInt64{1});
                                 LOG_DEBUG(getLogger("Planner"), "Disabling parallel replicas because there aren't enough rows to read");
                             }

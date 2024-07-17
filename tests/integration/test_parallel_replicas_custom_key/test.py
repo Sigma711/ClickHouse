@@ -37,13 +37,13 @@ def insert_data(table_name, row_num, all_nodes=False):
 
 
 @pytest.mark.parametrize("custom_key", ["sipHash64(key)", "key"])
-@pytest.mark.parametrize("filter_type", ["key_hash", "key_range"])
+@pytest.mark.parametrize("parallel_replicas_mode", ["custom_key_sampling", "custom_key_range"])
 @pytest.mark.parametrize(
     "cluster",
     ["test_multiple_shards_multiple_replicas", "test_single_shard_multiple_replicas"],
 )
 def test_parallel_replicas_custom_key_distributed(
-    start_cluster, cluster, custom_key, filter_type
+    start_cluster, cluster, custom_key, parallel_replicas_mode
 ):
     for node in nodes:
         node.rotate_logs()
@@ -84,7 +84,8 @@ def test_parallel_replicas_custom_key_distributed(
             settings={
                 "max_parallel_replicas": 4,
                 "parallel_replicas_custom_key": custom_key,
-                "parallel_replicas_mode": filter_type,
+                "use_parallel_replicas": 1,
+                "parallel_replicas_mode": parallel_replicas_mode,
                 "prefer_localhost_replica": 0,
             },
         )
