@@ -1,12 +1,13 @@
 #pragma once
 
+#include <bit>
 #include <cstring>
 #include <type_traits>
-#include <bit>
+#include <base/defines.h>
 
 
 template <typename T>
-inline T unalignedLoad(const void * address)
+inline ALWAYS_INLINE T unalignedLoad(const void * address)
 {
     T res {};
     memcpy(&res, address, sizeof(res));
@@ -18,15 +19,14 @@ inline T unalignedLoad(const void * address)
 /// To prevent this, make the caller specify the stored type explicitly.
 /// To disable deduction of T, wrap the argument type with std::enable_if.
 template <typename T>
-inline void unalignedStore(void * address,
-                           const typename std::enable_if<true, T>::type & src)
+inline ALWAYS_INLINE void unalignedStore(void * address, const typename std::enable_if<true, T>::type & src)
 {
     static_assert(std::is_trivially_copyable_v<T>);
     memcpy(address, &src, sizeof(src));
 }
 
 
-inline void reverseMemcpy(void * dst, const void * src, size_t size)
+inline ALWAYS_INLINE void reverseMemcpy(void * dst, const void * src, size_t size)
 {
     uint8_t * uint_dst = reinterpret_cast<uint8_t *>(dst);
     const uint8_t * uint_src = reinterpret_cast<const uint8_t *>(src);
@@ -42,7 +42,7 @@ inline void reverseMemcpy(void * dst, const void * src, size_t size)
 }
 
 template <std::endian endian, typename T>
-inline T unalignedLoadEndian(const void * address)
+inline ALWAYS_INLINE T unalignedLoadEndian(const void * address)
 {
     T res {};
     if constexpr (std::endian::native == endian)
@@ -54,7 +54,7 @@ inline T unalignedLoadEndian(const void * address)
 
 
 template <std::endian endian, typename T>
-inline void unalignedStoreEndian(void * address, T & src)
+inline ALWAYS_INLINE void unalignedStoreEndian(void * address, T & src)
 {
     static_assert(std::is_trivially_copyable_v<T>);
     if constexpr (std::endian::native == endian)
@@ -65,29 +65,27 @@ inline void unalignedStoreEndian(void * address, T & src)
 
 
 template <typename T>
-inline T unalignedLoadLittleEndian(const void * address)
+inline ALWAYS_INLINE T unalignedLoadLittleEndian(const void * address)
 {
     return unalignedLoadEndian<std::endian::little, T>(address);
 }
 
 
 template <typename T>
-inline void unalignedStoreLittleEndian(void * address,
-    const typename std::enable_if<true, T>::type & src)
+inline ALWAYS_INLINE void unalignedStoreLittleEndian(void * address, const typename std::enable_if<true, T>::type & src)
 {
     unalignedStoreEndian<std::endian::little>(address, src);
 }
 
 template <typename T>
-inline T unalignedLoadBigEndian(const void * address)
+inline ALWAYS_INLINE T unalignedLoadBigEndian(const void * address)
 {
     return unalignedLoadEndian<std::endian::big, T>(address);
 }
 
 
 template <typename T>
-inline void unalignedStoreBigEndian(void * address,
-    const typename std::enable_if<true, T>::type & src)
+inline ALWAYS_INLINE void unalignedStoreBigEndian(void * address, const typename std::enable_if<true, T>::type & src)
 {
     unalignedStoreEndian<std::endian::big>(address, src);
 }
