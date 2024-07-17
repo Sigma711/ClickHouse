@@ -357,7 +357,7 @@ void RefreshTask::refreshTask()
         stop_requested = true;
         tryLogCurrentException(log,
             "Unexpected exception in refresh scheduling, please investigate. The view will be stopped.");
-#ifdef DEBUG_OR_SANITIZER_BUILD
+#ifdef ABORT_ON_LOGICAL_ERROR
         abortOnFailedAssertion("Unexpected exception in refresh scheduling");
 #endif
     }
