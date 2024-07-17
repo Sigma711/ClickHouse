@@ -1,7 +1,6 @@
 import argparse
 import dataclasses
 import json
-import logging
 import os
 import sys
 from typing import List
@@ -12,6 +11,7 @@ from ci_utils import Shell
 from env_helper import GITHUB_REPOSITORY
 from report import SUCCESS
 from ci_buddy import CIBuddy
+from ci_config import CI
 
 
 def parse_args():
@@ -44,6 +44,8 @@ class ReleaseParams:
     num_patches: int
     release_branch: str
     commit_sha: str
+    commits_to_branch_head: int
+    latest: bool
 
     def to_dict(self):
         return dataclasses.asdict(self)
@@ -75,86 +77,73 @@ def _prepare(token):
     (Shell.run("gh auth status", check=True))
     gh = GitHub(token)
     prs = gh.get_release_pulls(GITHUB_REPOSITORY)
+    prs.sort(key=lambda x: x.head.ref)
     branch_names = [pr.head.ref for pr in prs]
     print(f"Found release branches [{branch_names}]")
     repo = gh.get_repo(GITHUB_REPOSITORY)
     autoRelease_info = AutoReleaseInfo(releases=[])
     for pr in prs:
-        print(f"Checking PR [{pr.head.ref}]")
+        print(f"\nChecking PR [{pr.head.ref}]")
 
         refs = list(repo.get_git_matching_refs(f"tags/v{pr.head.ref}"))
         refs.sort(key=lambda ref: ref.ref)
 
         latest_release_tag_ref = refs[-1]
         latest_release_tag = repo.get_git_tag(latest_release_tag_ref.object.sha)
-        commit_num = int(
-            Shell.run(
-                f"git rev-list --count {latest_release_tag.tag}..origin/{pr.head.ref}",
-                check=True,
-            )
-        )
+        commits = Shell.run(
+            f"git rev-list --first-parent  {latest_release_tag.tag}..origin/{pr.head.ref}",
+            check=True,
+        ).split("\n")
+        commit_num = len(commits)
         print(
             f"Previous release is [{latest_release_tag}] was [{commit_num}] commits before, date [{latest_release_tag.tagger.date}]"
         )
-        commit_reverse_index = 0
-        commit_found = False
-        commit_checked = False
-        last_ci_status = ""
-        best_ci_status = ""
-        last_commit_sha = ""
-        best_commit_sha = ""
-        while (
-            commit_reverse_index < commit_num - 1
-            and commit_reverse_index < MAX_NUMBER_OF_COMMITS_TO_CONSIDER_FOR_RELEASE
+        commit_sha = ""
+        commit_ci_status = ""
+        commits = commits[:-1]  # the last one presumably is version bump
+        commits_to_branch_head = 0
+        for idx, commit in enumerate(
+            commits[:MAX_NUMBER_OF_COMMITS_TO_CONSIDER_FOR_RELEASE]
         ):
-            commit_checked = True
-            best_commit_sha = Shell.run(
-                f"git rev-list --max-count=1 --skip={commit_reverse_index} origin/{pr.head.ref}",
-                check=True,
-            )
             print(
-                f"Check if commit [{best_commit_sha}] [{pr.head.ref}~{commit_reverse_index}] is ready for release"
+                f"Check commit [{commit}] [{pr.head.ref}~{idx+1}] as release candidate"
             )
-            if not last_commit_sha:
-                last_commit_sha = best_commit_sha
-            commit_reverse_index += 1
-
-            cmd = f"gh api -H 'Accept: application/vnd.github.v3+json' /repos/{GITHUB_REPOSITORY}/commits/{best_commit_sha}/status"
-            ci_status_json = Shell.run(cmd, check=True)
-            best_ci_status = json.loads(ci_status_json)["state"]
-            if not last_ci_status:
-                last_ci_status = best_ci_status
-            if best_ci_status == SUCCESS:
-                commit_found = True
-            break
-        if commit_found:
+            commit_num -= 1
+            # cmd = f"gh api -H 'Accept: application/vnd.github.v3+json' /repos/{GITHUB_REPOSITORY}/commits/{commit}/status"
+            # ci_status_json = Shell.run(cmd, check=True)
+            # commit_ci_status = json.loads(ci_status_json)["state"]
+            commit_ci_status = CI.GHActions.get_commit_status_by_name(
+                token=token,
+                commit_sha=commit,
+                status_name=(CI.JobNames.BUILD_CHECK, "ClickHouse build check"),
+            )
+            commit_sha = commit
+            if commit_ci_status == SUCCESS:
+                break
+            else:
+                print(f"CI status [{commit_ci_status}] - skip")
+            commits_to_branch_head += 1
+        if commit_ci_status == SUCCESS and commit_sha:
             print(
-                f"Add release ready info for commit [{best_commit_sha}] and release branch [{pr.head.ref}]"
+                f"Add release ready info for commit [{commit_sha}] and release branch [{pr.head.ref}]"
             )
-            autoRelease_info.add_release(
-                ReleaseParams(
-                    release_branch=pr.head.ref,
-                    commit_sha=best_commit_sha,
-                    ready=True,
-                    ci_status=best_ci_status,
-                    num_patches=commit_num,
-                )
-            )
+            ready = True
         else:
-            print(f"WARNING: No good commits found for release branch [{pr.head.ref}]")
-            autoRelease_info.add_release(
-                ReleaseParams(
-                    release_branch=pr.head.ref,
-                    commit_sha=last_commit_sha,
-                    ready=False,
-                    ci_status=last_ci_status,
-                    num_patches=commit_num,
-                )
+            print(f"WARNING: No ready commits found for release branch [{pr.head.ref}]")
+            ready = False
+        autoRelease_info.add_release(
+            ReleaseParams(
+                release_branch=pr.head.ref,
+                commit_sha=commit_sha,
+                ready=ready,
+                ci_status=commit_ci_status,
+                num_patches=commit_num,
+                commits_to_branch_head=commits_to_branch_head,
+                latest=False,
             )
-            if commit_checked:
-                print(
-                    f"ERROR: CI is failed. check CI status for branch [{pr.head.ref}]"
-                )
+        )
+    if autoRelease_info.releases:
+        autoRelease_info.releases[-1].latest = True
     autoRelease_info.dump()
 
 

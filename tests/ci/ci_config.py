@@ -32,6 +32,9 @@ class CI:
     from ci_definitions import MQ_JOBS as MQ_JOBS
     from ci_definitions import WorkflowStages as WorkflowStages
     from ci_definitions import Runners as Runners
+    from ci_utils import Envs as Envs
+    from ci_utils import Utils as Utils
+    from ci_utils import GHActions as GHActions
 
     # Jobs that run for doc related updates
     _DOCS_CHECK_JOBS = [JobNames.DOCS_CHECK, JobNames.STYLE_CHECK]

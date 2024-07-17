@@ -53,12 +53,13 @@ jobs:
           python3 auto_release.py --post-status
       - name: Release ${{ fromJson(env.AUTO_RELEASE_PARAMS).releases[0].release_branch }}
         if: ${{ fromJson(env.AUTO_RELEASE_PARAMS).releases[0] && fromJson(env.AUTO_RELEASE_PARAMS).releases[0].ready }}
-        uses: ./.github/workflow/create_release.yml
+        uses: ./.github/actions/release
         with:
           ref: ${{ fromJson(env.AUTO_RELEASE_PARAMS).releases[0].commit_sha }}
           type: patch
           dry-run: ${{ inputs.dry-run }}
-          #token: ${{secrets.ROBOT_CLICKHOUSE_COMMIT_TOKEN}}
+          autorelease: true
+          token: ${{secrets.ROBOT_CLICKHOUSE_COMMIT_TOKEN}}
       - name: Release ${{ fromJson(env.AUTO_RELEASE_PARAMS).releases[1].release_branch }}
         if: ${{ fromJson(env.AUTO_RELEASE_PARAMS).releases[0] && fromJson(env.AUTO_RELEASE_PARAMS).releases[1].ready }}
         uses: ./.github/actions/release
@@ -67,34 +68,34 @@ jobs:
           type: patch
           dry-run: ${{ inputs.dry-run }}
           autorelease: true
-          #token: ${{secrets.ROBOT_CLICKHOUSE_COMMIT_TOKEN}}
+          token: ${{secrets.ROBOT_CLICKHOUSE_COMMIT_TOKEN}}
       - name: Release ${{ fromJson(env.AUTO_RELEASE_PARAMS).releases[2].release_branch }}
-        if: ${{ fromJson(env.AUTO_RELEASE_PARAMS).releases[0] && fromJson(env.AUTO_RELEASE_PARAMS).releases[2].ready }}
+        if: ${{ fromJson(env.AUTO_RELEASE_PARAMS).releases[2] && fromJson(env.AUTO_RELEASE_PARAMS).releases[2].ready }}
         uses: ./.github/actions/release
         with:
           ref: ${{ fromJson(env.AUTO_RELEASE_PARAMS).releases[2].commit_sha }}
           type: patch
           dry-run: ${{ inputs.dry-run }}
           autorelease: true
-          #token: ${{secrets.ROBOT_CLICKHOUSE_COMMIT_TOKEN}}
+          token: ${{secrets.ROBOT_CLICKHOUSE_COMMIT_TOKEN}}
       - name: Release ${{ fromJson(env.AUTO_RELEASE_PARAMS).releases[3].release_branch }}
-        if: ${{ fromJson(env.AUTO_RELEASE_PARAMS).releases[0] && fromJson(env.AUTO_RELEASE_PARAMS).releases[3].ready }}
+        if: ${{ fromJson(env.AUTO_RELEASE_PARAMS).releases[3] && fromJson(env.AUTO_RELEASE_PARAMS).releases[3].ready }}
         uses: ./.github/actions/release
         with:
           ref: ${{ fromJson(env.AUTO_RELEASE_PARAMS).releases[3].commit_sha }}
           type: patch
           dry-run: ${{ inputs.dry-run }}
           autorelease: true
-          #token: ${{secrets.ROBOT_CLICKHOUSE_COMMIT_TOKEN}}
+          token: ${{secrets.ROBOT_CLICKHOUSE_COMMIT_TOKEN}}
       - name: Release ${{ fromJson(env.AUTO_RELEASE_PARAMS).releases[4].release_branch }}
-        if: ${{ fromJson(env.AUTO_RELEASE_PARAMS).releases[0] && fromJson(env.AUTO_RELEASE_PARAMS).releases[4].ready }}
+        if: ${{ fromJson(env.AUTO_RELEASE_PARAMS).releases[4] && fromJson(env.AUTO_RELEASE_PARAMS).releases[4].ready }}
         uses: ./.github/actions/release
         with:
           ref: ${{ fromJson(env.AUTO_RELEASE_PARAMS).releases[4].commit_sha }}
           type: patch
           dry-run: ${{ inputs.dry-run }}
           autorelease: true
-          #token: ${{secrets.ROBOT_CLICKHOUSE_COMMIT_TOKEN}}
+          token: ${{secrets.ROBOT_CLICKHOUSE_COMMIT_TOKEN}}
       - name: Post Slack Message
         if: ${{ !cancelled() }}
         run: |

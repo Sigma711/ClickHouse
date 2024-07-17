@@ -3,7 +3,13 @@ import re
 import subprocess
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Iterator, List, Union, Optional
+from typing import Any, Iterator, List, Union, Optional, Sequence
+
+import requests
+
+
+class Envs:
+    GITHUB_REPOSITORY = os.getenv("GITHUB_REPOSITORY", "ClickHouse/ClickHouse")
 
 
 class WithIter(type):
@@ -45,6 +51,34 @@ class GHActions:
             print(line)
         print("::endgroup::")
 
+    @staticmethod
+    def get_commit_status_by_name(
+        token: str, commit_sha: str, status_name: Union[str, Sequence]
+    ) -> Optional[str]:
+        assert len(token) == 40
+        assert len(commit_sha) == 40
+        assert is_hex(commit_sha)
+        assert not is_hex(token)
+        url = f"https://api.github.com/repos/{Envs.GITHUB_REPOSITORY}/commits/{commit_sha}/statuses?per_page={100}"
+        headers = {
+            "Authorization": f"token {token}",
+            "Accept": "application/vnd.github.v3+json",
+        }
+        response = requests.get(url, headers=headers, timeout=5)
+
+        if isinstance(status_name, str):
+            status_name = (status_name,)
+        if response.status_code == 200:
+            assert "next" not in response.links, "Response truncated"
+            statuses = response.json()
+            specific_status = next(
+                (status for status in statuses if status["context"] in status_name),
+                None,
+            )
+            if specific_status:
+                return specific_status["state"]
+        return None
+
 
 class Shell:
     @classmethod
@@ -74,7 +108,9 @@ class Shell:
         if result.returncode == 0:
             res = result.stdout
         else:
-            print(f"ERROR: stdout {result.stdout.strip()}, stderr {result.stderr.strip()}")
+            print(
+                f"ERROR: stdout {result.stdout.strip()}, stderr {result.stderr.strip()}"
+            )
             if check:
                 assert result.returncode == 0
         return res.strip()

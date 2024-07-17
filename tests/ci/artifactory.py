@@ -281,12 +281,6 @@ def parse_args() -> argparse.Namespace:
         description="Adds release packages to the repository",
     )
     parser.add_argument(
-        "--infile",
-        type=str,
-        required=True,
-        help="input file with release info",
-    )
-    parser.add_argument(
         "--export-debian",
         action="store_true",
         help="Export debian packages to repository",
@@ -328,7 +322,7 @@ if __name__ == "__main__":
     args = parse_args()
     assert args.dry_run
 
-    release_info = ReleaseInfo.from_file(args.infile)
+    release_info = ReleaseInfo.from_file()
     """
     Use S3FS. RCLONE has some errors with r2 remote which I didn't figure out how to resolve:
            ERROR : IO error: NotImplemented: versionId not implemented
