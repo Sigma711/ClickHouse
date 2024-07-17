@@ -5549,16 +5549,14 @@ std::shared_ptr<AsyncReadCounters> Context::getAsyncReadCounters() const
 
 ParallelReplicasMode Context::getParallelReplicasMode() const
 {
-    const auto & settings_ref = getSettingsRef();
-    return settings_ref.parallel_replicas_mode;
+    return settings->parallel_replicas_mode;
 }
 
 bool Context::canUseTaskBasedParallelReplicas() const
 {
-    const auto & settings_ref = getSettingsRef();
-    return settings_ref.use_parallel_replicas > 0
-        && settings_ref.parallel_replicas_mode == ParallelReplicasMode::READ_TASKS
-        && settings_ref.max_parallel_replicas > 1;
+    return settings->use_parallel_replicas > 0
+        && settings->parallel_replicas_mode == ParallelReplicasMode::READ_TASKS
+        && settings->max_parallel_replicas > 1;
 }
 
 bool Context::canUseParallelReplicasOnInitiator() const
@@ -5573,12 +5571,11 @@ bool Context::canUseParallelReplicasOnFollower() const
 
 bool Context::canUseParallelReplicasCustomKey() const
 {
-    const auto & settings_ref = getSettingsRef();
-    const bool has_enough_servers = settings.max_parallel_replicas > 1;
-    const bool parallel_replicas_enabled = settings_ref.use_parallel_replicas > 0;
+    const bool has_enough_servers = settings->max_parallel_replicas > 1;
+    const bool parallel_replicas_enabled = settings->use_parallel_replicas > 0;
     const bool is_parallel_replicas_with_custom_key =
-        settings_ref.parallel_replicas_mode == ParallelReplicasMode::CUSTOM_KEY_SAMPLING ||
-        settings_ref.parallel_replicas_mode == ParallelReplicasMode::CUSTOM_KEY_RANGE;
+        settings->parallel_replicas_mode == ParallelReplicasMode::CUSTOM_KEY_SAMPLING ||
+        settings->parallel_replicas_mode == ParallelReplicasMode::CUSTOM_KEY_RANGE;
 
     return has_enough_servers && parallel_replicas_enabled && is_parallel_replicas_with_custom_key;
 }
@@ -5590,7 +5587,7 @@ bool Context::canUseParallelReplicasCustomKeyForCluster(const Cluster & cluster)
 
 bool Context::canUseOffsetParallelReplicas() const
 {
-    return offset_parallel_replicas_enabled && settings.max_parallel_replicas > 1 && getParallelReplicasMode() != Context::ParallelReplicasMode::SAMPLING_KEY;
+    return offset_parallel_replicas_enabled && settings->max_parallel_replicas > 1 && getParallelReplicasMode() == ParallelReplicasMode::SAMPLING_KEY;
 }
 
 void Context::disableOffsetParallelReplicas()

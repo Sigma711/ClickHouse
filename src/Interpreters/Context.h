@@ -12,6 +12,7 @@
 #include <Common/SharedMutexHelper.h>
 #include <Core/NamesAndTypes.h>
 #include <Core/UUID.h>
+#include <Core/ParallelReplicasMode.h>
 #include <Formats/FormatSettings.h>
 #include <IO/AsyncReadCounters.h>
 #include <IO/ReadSettings.h>
