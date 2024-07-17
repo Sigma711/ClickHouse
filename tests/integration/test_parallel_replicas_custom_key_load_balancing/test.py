@@ -56,7 +56,9 @@ def create_tables(table_name):
 
 @pytest.mark.parametrize("use_hedged_requests", [1, 0])
 @pytest.mark.parametrize("custom_key", ["sipHash64(key)", "key"])
-@pytest.mark.parametrize("parallel_replicas_mode", ["custom_key_sampling", "custom_key_range"])
+@pytest.mark.parametrize(
+    "parallel_replicas_mode", ["custom_key_sampling", "custom_key_range"]
+)
 def test_parallel_replicas_custom_key_load_balancing(
     start_cluster,
     use_hedged_requests,

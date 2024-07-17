@@ -37,7 +37,9 @@ def insert_data(table_name, row_num, all_nodes=False):
 
 
 @pytest.mark.parametrize("custom_key", ["sipHash64(key)", "key"])
-@pytest.mark.parametrize("parallel_replicas_mode", ["custom_key_sampling", "custom_key_range"])
+@pytest.mark.parametrize(
+    "parallel_replicas_mode", ["custom_key_sampling", "custom_key_range"]
+)
 @pytest.mark.parametrize(
     "cluster",
     ["test_multiple_shards_multiple_replicas", "test_single_shard_multiple_replicas"],
