@@ -4,6 +4,28 @@ concurrency:
   group: release
 
 'on':
+  workflow_call:
+    inputs:
+      ref:
+        description: 'Git reference (branch or commit sha) from which to create the release'
+        required: true
+        type: string
+      type:
+        description: 'The type of release: "new" for a new release or "patch" for a patch release'
+        type: choice
+        options:
+          - patch
+          - new
+        default: patch
+      autorelease:
+        required: false
+        default: false
+        type: boolean
+      dry-run:
+        description: 'Dry run'
+        required: false
+        default: true
+        type: boolean
   workflow_dispatch:
     inputs:
       ref:

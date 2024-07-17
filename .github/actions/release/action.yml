@@ -19,10 +19,6 @@ inputs:
     required: false
     default: true
     type: boolean
-  autorelease:
-    required: false
-    default: false
-    type: boolean
   token:
     required: true
     type: string
