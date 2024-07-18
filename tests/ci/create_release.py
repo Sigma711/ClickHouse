@@ -15,6 +15,7 @@ from env_helper import GITHUB_REPOSITORY, S3_BUILDS_BUCKET
 from s3_helper import S3Helper
 from autoscale_runners_lambda.lambda_shared.pr import Labels
 from ci_utils import Shell
+from ci_buddy import CIBuddy
 from version_helper import (
     FILE_WITH_VERSION_PATH,
     GENERATED_CONTRIBUTORS,
@@ -69,12 +70,22 @@ class ReleaseInfo:
     codename: str
     previous_release_tag: str
     previous_release_sha: str
+    changelog_pr: str = ""
+    version_bump_pr: str = ""
+    release_url: str = ""
+    debian_command: str = ""
+    rpm_command: str = ""
 
     @staticmethod
     def from_file() -> "ReleaseInfo":
         with open(RELEASE_INFO_FILE, "r", encoding="utf-8") as json_file:
             res = json.load(json_file)
         return ReleaseInfo(**res)
+
+    def dump(self):
+        print(f"Dump release info into [{RELEASE_INFO_FILE}]")
+        with open(RELEASE_INFO_FILE, "w", encoding="utf-8") as f:
+            print(json.dumps(dataclasses.asdict(self), indent=2), file=f)
 
     @staticmethod
     def prepare(commit_ref: str, release_type: str) -> None:
@@ -171,8 +182,7 @@ class ReleaseInfo:
             previous_release_tag=previous_release_tag,
             previous_release_sha=previous_release_sha,
         )
-        with open(RELEASE_INFO_FILE, "w", encoding="utf-8") as f:
-            print(json.dumps(dataclasses.asdict(res), indent=2), file=f)
+        res.dump()
 
     def push_release_tag(self, dry_run: bool) -> None:
         if dry_run:
@@ -276,21 +286,38 @@ class ReleaseInfo:
                         f"{GIT_PREFIX} checkout '{CMAKE_PATH}' '{CONTRIBUTORS_PATH}'"
                     )
 
+    def update_release_info(self, dry_run: bool) -> None:
+        branch = f"auto/{release_info.release_tag}"
+        if not dry_run:
+            get_url_cmd = f"gh pr list --repo {GITHUB_REPOSITORY} --head {branch} --json url --jq '.[0].url'"
+            url = Shell.run(get_url_cmd)
+            if url:
+                print(f"Update release info with Changelog PR link [{url}]")
+            else:
+                print(f"WARNING: Changelog PR not found, branch [{branch}]")
+        else:
+            url = "dry-run"
+
+        self.changelog_pr = url
+        self.dump()
+
     def create_gh_release(self, packages_files: List[str], dry_run: bool) -> None:
         repo = os.getenv("GITHUB_REPOSITORY")
         assert repo
-        cmds = []
-        cmds.append(
+        cmds = [
             f"gh release create --repo {repo} --title 'Release {self.release_tag}' {self.release_tag}"
-        )
+        ]
         for file in packages_files:
             cmds.append(f"gh release upload {self.release_tag} {file}")
         if not dry_run:
             for cmd in cmds:
-                ShellRunner.run(cmd)
+                Shell.run(cmd, check=True)
+            self.release_url = f"https://github.com/{GITHUB_REPOSITORY}/releases/tag/{self.release_tag}"
         else:
             print("Dry-run, would run commands:")
             print("\n  * ".join(cmds))
+            self.release_url = f"dry-run"
+        self.dump()
 
 
 class RepoTypes:
@@ -509,6 +536,11 @@ def parse_args() -> argparse.Namespace:
         help="Create GH Release object and attach all packages",
     )
     parser.add_argument(
+        "--post-status",
+        action="store_true",
+        help="Post release status into Slack",
+    )
+    parser.add_argument(
         "--ref",
         type=str,
         help="the commit hash or branch",
@@ -603,7 +635,17 @@ if __name__ == "__main__":
             commit_sha=release_info.commit_sha,
             version=release_info.version,
         )
-        release_info.create_gh_release(p.get_all_packages_files(), args.dry_run)
+    if args.post_status:
+        release_info = ReleaseInfo.from_file()
+        release_info.update_release_info(dry_run=args.dry_run)
+        if release_info.debian_command:
+            CIBuddy(dry_run=args.dry_run).post_done(
+                f"New release issued", dataclasses.asdict(release_info)
+            )
+        else:
+            CIBuddy(dry_run=args.dry_run).post_critical(
+                f"Failed to issue new release", dataclasses.asdict(release_info)
+            )
 
     # tear down ssh
     if _ssh_agent and _key_pub:

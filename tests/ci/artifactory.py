@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Optional
 from shutil import copy2
 from create_release import PackageDownloader, ReleaseInfo, ShellRunner
-from ci_utils import WithIter
+from ci_utils import WithIter, Shell
 
 
 class MountPointApp(metaclass=WithIter):
@@ -141,12 +141,16 @@ class DebianArtifactory:
             ShellRunner.run("sync")
 
     def test_packages(self):
-        ShellRunner.run("docker pull ubuntu:latest")
+        Shell.run("docker pull ubuntu:latest")
         print(f"Test packages installation, version [{self.version}]")
-        cmd = f"docker run --rm ubuntu:latest bash -c \"apt update -y; apt install -y sudo gnupg ca-certificates; apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 8919F6BD2B48D754; echo 'deb {self.repo_url} stable main' | tee /etc/apt/sources.list.d/clickhouse.list; apt update -y; apt-get install -y clickhouse-client={self.version}\""
+        debian_command = f"echo 'deb {self.repo_url} stable main' | tee /etc/apt/sources.list.d/clickhouse.list; apt update -y; apt-get install -y clickhouse-common-static={self.version} clickhouse-client={self.version}"
+        cmd = f'docker run --rm ubuntu:latest bash -c "apt update -y; apt install -y sudo gnupg ca-certificates; apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 8919F6BD2B48D754; {debian_command}"'
         print("Running test command:")
         print(f"  {cmd}")
-        ShellRunner.run(cmd)
+        Shell.run(cmd, check=True)
+        release_info = ReleaseInfo.from_file()
+        release_info.debian_command = debian_command
+        release_info.dump()
 
 
 def _copy_if_not_exists(src: Path, dst: Path) -> Path:
@@ -210,15 +214,19 @@ class RpmArtifactory:
         pub_key_path.write_text(ShellRunner.run(update_public_key)[1])
         if codename == RepoCodenames.LTS:
             self.export_packages(RepoCodenames.STABLE)
-        ShellRunner.run("sync")
+        Shell.run("sync")
 
     def test_packages(self):
-        ShellRunner.run("docker pull fedora:latest")
+        Shell.run("docker pull fedora:latest")
         print(f"Test package installation, version [{self.version}]")
-        cmd = f'docker run --rm fedora:latest /bin/bash -c "dnf -y install dnf-plugins-core && dnf config-manager --add-repo={self.repo_url} && dnf makecache && dnf -y install clickhouse-client-{self.version}-1"'
+        rpm_command = f"dnf config-manager --add-repo={self.repo_url} && dnf makecache && dnf -y install clickhouse-client-{self.version}-1"
+        cmd = f'docker run --rm fedora:latest /bin/bash -c "dnf -y install dnf-plugins-core && dnf config-manager --add-repo={self.repo_url} && {rpm_command}"'
         print("Running test command:")
         print(f"  {cmd}")
-        ShellRunner.run(cmd)
+        Shell.run(cmd, check=True)
+        release_info = ReleaseInfo.from_file()
+        release_info.rpm_command = rpm_command
+        release_info.dump()
 
 
 class TgzArtifactory:

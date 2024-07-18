@@ -74,44 +74,57 @@ class AutoReleaseInfo:
 def _prepare(token):
     assert len(token) > 10
     os.environ["GH_TOKEN"] = token
-    (Shell.run("gh auth status", check=True))
+    Shell.run("gh auth status", check=True)
+
     gh = GitHub(token)
     prs = gh.get_release_pulls(GITHUB_REPOSITORY)
     prs.sort(key=lambda x: x.head.ref)
     branch_names = [pr.head.ref for pr in prs]
     print(f"Found release branches [{branch_names}]")
+
     repo = gh.get_repo(GITHUB_REPOSITORY)
     autoRelease_info = AutoReleaseInfo(releases=[])
+
     for pr in prs:
         print(f"\nChecking PR [{pr.head.ref}]")
 
         refs = list(repo.get_git_matching_refs(f"tags/v{pr.head.ref}"))
-        refs.sort(key=lambda ref: ref.ref)
+        assert refs
 
+        refs.sort(key=lambda ref: ref.ref)
         latest_release_tag_ref = refs[-1]
         latest_release_tag = repo.get_git_tag(latest_release_tag_ref.object.sha)
+
         commits = Shell.run(
-            f"git rev-list --first-parent  {latest_release_tag.tag}..origin/{pr.head.ref}",
+            f"git rev-list --first-parent {latest_release_tag.tag}..origin/{pr.head.ref}",
             check=True,
         ).split("\n")
         commit_num = len(commits)
         print(
-            f"Previous release is [{latest_release_tag}] was [{commit_num}] commits before, date [{latest_release_tag.tagger.date}]"
+            f"Previous release [{latest_release_tag.tag}] was [{commit_num}] commits ago, date [{latest_release_tag.tagger.date}]"
         )
+
+        commits_to_check = commits[:-1]  # Exclude the version bump commit
         commit_sha = ""
         commit_ci_status = ""
-        commits = commits[:-1]  # the last one presumably is version bump
         commits_to_branch_head = 0
+
         for idx, commit in enumerate(
-            commits[:MAX_NUMBER_OF_COMMITS_TO_CONSIDER_FOR_RELEASE]
+            commits_to_check[:MAX_NUMBER_OF_COMMITS_TO_CONSIDER_FOR_RELEASE]
         ):
             print(
                 f"Check commit [{commit}] [{pr.head.ref}~{idx+1}] as release candidate"
             )
             commit_num -= 1
-            # cmd = f"gh api -H 'Accept: application/vnd.github.v3+json' /repos/{GITHUB_REPOSITORY}/commits/{commit}/status"
-            # ci_status_json = Shell.run(cmd, check=True)
-            # commit_ci_status = json.loads(ci_status_json)["state"]
+
+            is_completed = CI.GHActions.check_wf_completed(
+                token=token, commit_sha=commit
+            )
+            if not is_completed:
+                print(f"CI is in progress for [{commit}] - check previous commit")
+                commits_to_branch_head += 1
+                continue
+
             commit_ci_status = CI.GHActions.get_commit_status_by_name(
                 token=token,
                 commit_sha=commit,
@@ -123,14 +136,15 @@ def _prepare(token):
             else:
                 print(f"CI status [{commit_ci_status}] - skip")
             commits_to_branch_head += 1
-        if commit_ci_status == SUCCESS and commit_sha:
+
+        ready = commit_ci_status == SUCCESS and commit_sha
+        if ready:
             print(
                 f"Add release ready info for commit [{commit_sha}] and release branch [{pr.head.ref}]"
             )
-            ready = True
         else:
             print(f"WARNING: No ready commits found for release branch [{pr.head.ref}]")
-            ready = False
+
         autoRelease_info.add_release(
             ReleaseParams(
                 release_branch=pr.head.ref,
@@ -142,8 +156,10 @@ def _prepare(token):
                 latest=False,
             )
         )
+
     if autoRelease_info.releases:
         autoRelease_info.releases[-1].latest = True
+
     autoRelease_info.dump()
 
 
@@ -153,10 +169,16 @@ def main():
     if args.post_status:
         info = AutoReleaseInfo.from_file()
         for release_info in info.releases:
-            CIBuddy(dry_run=False).post_info(
-                title=f"Auto Release Status for {release_info.release_branch}",
-                body=release_info.to_dict(),
-            )
+            if release_info.ready:
+                CIBuddy(dry_run=False).post_info(
+                    title=f"Auto Release Status for {release_info.release_branch}",
+                    body=release_info.to_dict(),
+                )
+            else:
+                CIBuddy(dry_run=False).post_warning(
+                    title=f"Auto Release Status for {release_info.release_branch}",
+                    body=release_info.to_dict(),
+                )
     elif args.prepare:
         _prepare(token=args.token or get_best_robot_token())
     else:

@@ -58,7 +58,6 @@ jobs:
           ref: ${{ fromJson(env.AUTO_RELEASE_PARAMS).releases[0].commit_sha }}
           type: patch
           dry-run: ${{ inputs.dry-run }}
-          autorelease: true
           token: ${{secrets.ROBOT_CLICKHOUSE_COMMIT_TOKEN}}
       - name: Release ${{ fromJson(env.AUTO_RELEASE_PARAMS).releases[1].release_branch }}
         if: ${{ fromJson(env.AUTO_RELEASE_PARAMS).releases[0] && fromJson(env.AUTO_RELEASE_PARAMS).releases[1].ready }}
@@ -67,7 +66,6 @@ jobs:
           ref: ${{ fromJson(env.AUTO_RELEASE_PARAMS).releases[1].commit_sha }}
           type: patch
           dry-run: ${{ inputs.dry-run }}
-          autorelease: true
           token: ${{secrets.ROBOT_CLICKHOUSE_COMMIT_TOKEN}}
       - name: Release ${{ fromJson(env.AUTO_RELEASE_PARAMS).releases[2].release_branch }}
         if: ${{ fromJson(env.AUTO_RELEASE_PARAMS).releases[2] && fromJson(env.AUTO_RELEASE_PARAMS).releases[2].ready }}
@@ -76,7 +74,6 @@ jobs:
           ref: ${{ fromJson(env.AUTO_RELEASE_PARAMS).releases[2].commit_sha }}
           type: patch
           dry-run: ${{ inputs.dry-run }}
-          autorelease: true
           token: ${{secrets.ROBOT_CLICKHOUSE_COMMIT_TOKEN}}
       - name: Release ${{ fromJson(env.AUTO_RELEASE_PARAMS).releases[3].release_branch }}
         if: ${{ fromJson(env.AUTO_RELEASE_PARAMS).releases[3] && fromJson(env.AUTO_RELEASE_PARAMS).releases[3].ready }}
@@ -85,7 +82,6 @@ jobs:
           ref: ${{ fromJson(env.AUTO_RELEASE_PARAMS).releases[3].commit_sha }}
           type: patch
           dry-run: ${{ inputs.dry-run }}
-          autorelease: true
           token: ${{secrets.ROBOT_CLICKHOUSE_COMMIT_TOKEN}}
       - name: Release ${{ fromJson(env.AUTO_RELEASE_PARAMS).releases[4].release_branch }}
         if: ${{ fromJson(env.AUTO_RELEASE_PARAMS).releases[4] && fromJson(env.AUTO_RELEASE_PARAMS).releases[4].ready }}
@@ -94,7 +90,6 @@ jobs:
           ref: ${{ fromJson(env.AUTO_RELEASE_PARAMS).releases[4].commit_sha }}
           type: patch
           dry-run: ${{ inputs.dry-run }}
-          autorelease: true
           token: ${{secrets.ROBOT_CLICKHOUSE_COMMIT_TOKEN}}
       - name: Post Slack Message
         if: ${{ !cancelled() }}

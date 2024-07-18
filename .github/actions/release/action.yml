@@ -162,4 +162,4 @@ runs:
       if: ${{ !cancelled() }}
       shell: bash
       run: |
-        echo Slack Message
+        python3 ./tests/ci/create_release.py --post-status ${{ inputs.dry-run && '--dry-run' || '' }}
